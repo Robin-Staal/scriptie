@@ -2,8 +2,16 @@ import pandas as pd
 import numpy as np
 
 class FeatureEngineeringPipeline:
-    def __init__(self, windows=(7, 14, 21, 28)):
+    def __init__(self, windows=(7, 14, 21, 28), lags=(1, 2, 3)):
         self.windows = windows
+        self.lags = lags
+        self.aggregates = {
+            'sum': np.sum,
+            'mean': np.mean,
+            'max': np.max,
+            'min': np.min,
+            'std': np.std,
+        }
         
     def engineer_strength(self, strength_df: pd.DataFrame) -> pd.DataFrame:
         '''
@@ -27,16 +35,16 @@ class FeatureEngineeringPipeline:
         - avg_repetitions
         '''
         strength_df = strength_df.copy()
-        strength_df['strength_load'] = strength_df['weight'] * strength_df['repetitions']
-        strength_df_daily = strength_df.groupby(['Date', 'bodypart']).agg(
+        strength_df['strength_load'] = strength_df['Weight'] * strength_df['Reps']
+        strength_df_daily = strength_df.groupby(['Date', 'Exercise']).agg(
             num_sets=('strength_load', 'count'),
             total_strength_load=('strength_load', 'sum'),
             max_strength_load=('strength_load', 'max'),
             avg_strength_load=('strength_load', 'mean'),
-            max_weight=('weight', 'max'),
-            avg_weight=('weight', 'mean'),
-            max_repetitions=('repetitions', 'max'),
-            avg_repetitions=('repetitions', 'mean')
+            max_weight=('Weight', 'max'),
+            avg_weight=('Weight', 'mean'),
+            max_repetitions=('Reps', 'max'),
+            avg_repetitions=('Reps', 'mean')
         ).reset_index()
         
         return strength_df_daily
@@ -62,7 +70,7 @@ class FeatureEngineeringPipeline:
         - avg_duration
         '''
         endurance_df = endurance_df.copy()
-        endurance_df['training_load'] = endurance_df['RPE'] * endurance_df['duration']
+        endurance_df['training_load'] = endurance_df['RPE'] * endurance_df['Duration']
         endurance_df_daily = endurance_df.groupby('Date').agg(
             num_sessions=('training_load', 'count'),
             total_load=('training_load', 'sum'),
@@ -70,29 +78,55 @@ class FeatureEngineeringPipeline:
             avg_load=('training_load', 'mean'),
             max_RPE=('RPE', 'max'),
             avg_RPE=('RPE', 'mean'),
-            max_duration=('duration', 'max'),
-            avg_duration=('duration', 'mean')
+            max_duration=('Duration', 'max'),
+            avg_duration=('Duration', 'mean')
         ).reset_index()
         
         return endurance_df_daily
     
+    def construct_aggregates(self, daily_series_df: pd.DataFrame) -> pd.DataFrame:
+        '''
+        For each (temporal window, aggregate function) pair, constructs aggregate features.
+        E.g., for a window of 7 days and 'mean' aggregate function, constructs a feature that contains the rolling mean over the past 7 days.
+        '''
+        df = daily_series_df.copy()
+        df = df.set_index('Date').sort_index()
+
+        for col in df.columns:
+            for w in self.windows:
+                for agg_name, agg_func in self.aggregates.items():
+                    feature_name = f"{col}_{agg_name}_{w}d"
+                    df[feature_name] = df[col].rolling(window=w).apply(agg_func, raw=True)
+
+        return df.reset_index()
+    
     def transform(self, endurance_df: pd.DataFrame, strength_df: pd.DataFrame, additional_df: pd.DataFrame) -> pd.DataFrame:
         '''
-        Merges and engineers features from endurance, strength, and wellness dataframes.
         Endurance dataframe must contain 'Date', 'RPE', 'duration'.
         Strength dataframe must contain 'Date', 'weight', 'repetitions', 'bodypart'.
         Additional dataframe must contain 'Date' and other attributes (e.g., wellness scores, steps, food) that need to be considered.
+        
+        1) Converts endurance and strength data to daily aggregates.
+        2) Merges endurance, strength, and additional data on 'Date'.
+        3) Constructs aggregate features for each (temporal window, aggregate function) pair.
+        TODO: 4) Applies time-shifting on each feature to create lagged features.
+        5) Creates additional domain-specific features like ACWR.
         '''
-        df = df.copy()
-
-        for w in self.windows:
-            df[f"load_{w}d"] = df["load_1d"].rolling(w).mean()
-            df[f"sessions_{w}d"] = df["sessions_1d"].rolling(w).sum()
-
-        # ACWR
-        df["acwr_7_28"] = df["load_7d"] / df["load_28d"]
-
-        # Lagged wellness (important!)
-        df["target_lag1"] = df["target"].shift(1)
-
-        return df.dropna().reset_index(drop=True)
+        endurance_daily = self.engineer_endurance(endurance_df)
+        strength_daily = self.engineer_strength(strength_df)
+        daily_series_df = pd.merge(endurance_daily, strength_daily, on='Date', how='outer')
+        daily_series_df = pd.merge(daily_series_df, additional_df, on='Date', how='outer')
+        daily_series_df = daily_series_df.copy()
+        
+        daily_series_df.drop(columns=['Exercise'], inplace=True, errors='ignore')
+        daily_series_engineered_df = self.construct_aggregates(daily_series_df)
+        daily_series_engineered_df.drop(columns=['Date'], inplace=True, errors='ignore')
+        
+        # Apply ACWR calculation
+        if 'total_load' in daily_series_engineered_df.columns:
+            daily_series_engineered_df = daily_series_engineered_df.sort_values('Date')
+            daily_series_engineered_df['ACWR_7d_28d'] = (
+                daily_series_engineered_df['total_load_sum_7d'] /
+                daily_series_engineered_df['total_load_sum_28d']
+            )
+        return daily_series_engineered_df
