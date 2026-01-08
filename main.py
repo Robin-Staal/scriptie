@@ -18,22 +18,26 @@ fe = FeatureEngineeringPipeline()
 daily_series_engineered_df = fe.transform(endurance_df, strength_df, wellness_df)
 
 # run subgroup discovery on the constructed features
-runner = SubgroupDiscovery(min_coverage=15, depth=2)
-sd = runner.run(daily_series_engineered_df, target="target")
+runner = SubgroupDiscovery(min_coverage=15, depth=1)
+sd = runner.run(daily_series_engineered_df, target="wellness_total")
 
-results = sd.asDataFrame().head(5)
+results = sd.asDataFrame().head(15)
+
+print(results.columns.tolist())
 
 print("Feature(s) and conditions ||| coverage ||| average ||| quality")
 for _, r in results.iterrows():
     print(
-        f"{r['description']} ||| "
-        f"{r['coverage']} ||| "
-        f"{r['mean']:.2f} ||| "
-        f"{r['quality']:.4f}"
+        f"{r['Conditions']} ||| "
+        f"{r['Coverage']} ||| "
+        f"{r['Average']:.2f} ||| "
+        f"{r['Quality']:.4f}"
     )
+    
+print("\nAverage of entire dataset:", daily_series_engineered_df["wellness_total"].mean())
 
 # assess significance threshold of EV quality using swap randomisation
-sig = SwapRandomisationSignificance(n_runs=100, alpha=0.05)
-threshold = sig.run(daily_series_engineered_df, "target")
+sig = SwapRandomisationSignificance(n_runs=10000, alpha=0.05)
+threshold = sig.run(daily_series_engineered_df, "wellness_total")
 
 print("\nSignificance threshold (p=0.05):", threshold)

@@ -9,6 +9,29 @@ class VolleyBallPreprocessor(Preprocessor):
         self.jumps_path = jumps_path
         self.strength_data = strength_path
         
+    def preprocess_wellness(self, wellness_df: pd.DataFrame) -> pd.DataFrame:
+        '''
+        Combine the four wellness scores into a single one.
+        '''
+        wellness_df = wellness_df.copy()
+        wellness_df['wellness_total'] = (
+            wellness_df['Difficultparticipating'] +
+            wellness_df['Reducedtraining'] +
+            wellness_df['Affectedperformance'] +
+            wellness_df['Symptomscomplaints']
+        )
+        
+        wellness_df.drop(columns=[
+            'Difficultparticipating',
+            'Reducedtraining',
+            'Affectedperformance',
+            'Symptomscomplaints',
+            'Injury',
+            'Sick/healthy',
+            'Recovered'
+        ], inplace=True)
+        return wellness_df
+        
     def preprocess_jumps(self, jumps_df: pd.DataFrame) -> pd.DataFrame:
         '''
         Because the feature engineering class expects a time series with single entries per date, we aggregate the jumps data by date.
@@ -46,6 +69,7 @@ class VolleyBallPreprocessor(Preprocessor):
         endurance_data['Duration'] = pd.to_timedelta(endurance_data['Duration'])
         endurance_data['Duration'] = endurance_data['Duration'].dt.total_seconds() / 60.0
         
+        wellness_data = self.preprocess_wellness(wellness_data)
         wellness_data['Date'] = pd.to_datetime(wellness_data['Date'], dayfirst=True)
         wellness_data = pd.merge(
             wellness_data,
@@ -56,13 +80,7 @@ class VolleyBallPreprocessor(Preprocessor):
         
         # Make date notation consistent
         strength_data['Date'] = pd.to_datetime(strength_data['Date'], dayfirst=True)
-        # the 'Weight' column has 18,6 data, convert to 18.6
+        # the 'Weight' column has x,y data, convert to x.y
         strength_data['Weight'] = strength_data['Weight'].str.replace(',', '.').astype(float)
-        
-        #print the column names of the endruance data for debugging
-        print("Endurance data columns:", endurance_data.columns.tolist())
-        
-        #print the RPE and Duration columns for debugging
-        print("Endurance data RPE and Duration samples:", endurance_data[['RPE', 'Duration']].head())
         
         return endurance_data, strength_data, wellness_data

@@ -2,12 +2,13 @@ import pysubdisc
 import pandas as pd
 
 class SubgroupDiscovery:
-    def __init__(self, min_coverage=10, max_coverage=100, depth=2):
+    def __init__(self, min_coverage=10, max_coverage=100, depth=1):
         self.min_coverage = min_coverage
         self.max_coverage = max_coverage
         self.depth = depth
 
     def run(self, df: pd.DataFrame, target: str):
+        df.drop(columns=['Date'], inplace=True, errors='ignore')
         sd = pysubdisc.singleNumericTarget(df, target)
 
         sd.searchDepth = self.depth

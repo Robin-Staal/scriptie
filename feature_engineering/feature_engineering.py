@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 
 class FeatureEngineeringPipeline:
-    def __init__(self, windows=(7, 14, 21, 28), lags=(1, 2, 3)):
+    def __init__(self, windows=(3, 5, 7, 14, 21, 28), lags=(1, 2, 3)):
         self.windows = windows
         self.lags = lags
         self.aggregates = {
@@ -92,13 +92,27 @@ class FeatureEngineeringPipeline:
         df = daily_series_df.copy()
         df = df.set_index('Date').sort_index()
 
+        new_features = {}
+
         for col in df.columns:
+            if col == 'wellness_total':
+                continue
+            series = df[col]
             for w in self.windows:
+                rolling = series.rolling(window=w)
                 for agg_name, agg_func in self.aggregates.items():
                     feature_name = f"{col}_{agg_name}_{w}d"
-                    df[feature_name] = df[col].rolling(window=w).apply(agg_func, raw=True)
+                    new_features[feature_name] = rolling.apply(
+                        agg_func, raw=True
+                    )
+
+        features_df = pd.DataFrame(new_features, index=df.index)
+
+        # concatonate the new features
+        df = pd.concat([df, features_df], axis=1)
 
         return df.reset_index()
+
     
     def transform(self, endurance_df: pd.DataFrame, strength_df: pd.DataFrame, additional_df: pd.DataFrame) -> pd.DataFrame:
         '''
@@ -120,7 +134,6 @@ class FeatureEngineeringPipeline:
         
         daily_series_df.drop(columns=['Exercise'], inplace=True, errors='ignore')
         daily_series_engineered_df = self.construct_aggregates(daily_series_df)
-        daily_series_engineered_df.drop(columns=['Date'], inplace=True, errors='ignore')
         
         # Apply ACWR calculation
         if 'total_load' in daily_series_engineered_df.columns:
