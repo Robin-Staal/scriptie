@@ -98,7 +98,8 @@ class FeatureEngineeringPipeline:
                 continue
             series = df[col]
             for w in self.windows:
-                rolling = series.rolling(window=w)
+                # Shift by 1 to exclude current day (t) and start window at t-1
+                rolling = series.shift(1).rolling(window=w)
                 for agg_name, agg_func in self.aggregates.items():
                     feature_name = f"{col}_{agg_name}_{w}d"
                     new_features[feature_name] = rolling.apply(
