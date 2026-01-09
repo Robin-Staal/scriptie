@@ -15,6 +15,7 @@ class SubgroupDiscovery:
         sd.minimumCoverage = self.min_coverage
         sd.maximumCoverage = self.max_coverage
         sd.numericStrategy = 'NUMERIC_BEST'
+        sd.qualityMeasure  = 'EXPLAINED_VARIANCE'
         sd.qualityMeasureMinimum = 0.0
 
         sd.run(verbose=False)

@@ -11,6 +11,7 @@ class SwapRandomisationSignificance:
         sd.randomisationType = 'SWAP'
         sd.numberOfRandomisations = self.n_runs
         sd.significanceLevel = self.alpha
+        sd.qualityMeasure = 'EXPLAINED_VARIANCE'
 
         sd.run(verbose=False)
 
