@@ -41,9 +41,8 @@ class VolleyBallPreprocessor(Preprocessor):
         
         jumps_df = jumps_df.copy()
         jumps_agg = jumps_df.groupby('Date').agg(
-            AvgJumpHeightInCm=('HeightInCm', 'mean'),
-            TotalJumps=('HeightInCm', 'count'),
-            MedianJumpHeightInCm=('HeightInCm', 'median')
+            Avg_JumpHeight=('HeightInCm', 'mean'),
+            TotalJumps=('HeightInCm', 'count')
         ).reset_index()
         jumps_agg['Date'] = pd.to_datetime(jumps_agg['Date'], dayfirst=True)
         return jumps_agg

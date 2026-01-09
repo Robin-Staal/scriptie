@@ -6,7 +6,6 @@ class FeatureEngineeringPipeline:
         self.windows = windows
         self.lags = lags
         self.aggregates = {
-            'sum': np.sum,
             'mean': np.mean,
             'max': np.max,
             'min': np.min,
