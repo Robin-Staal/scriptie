@@ -108,7 +108,7 @@ class FeatureEngineeringPipeline:
 
         features_df = pd.DataFrame(new_features, index=df.index)
 
-        # concatonate the new features
+        # concatenate the new features
         df = pd.concat([df, features_df], axis=1)
 
         return df.reset_index()

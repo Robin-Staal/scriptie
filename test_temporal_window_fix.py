@@ -50,8 +50,8 @@ try:
         print(f"Expected mean (excluding current day): {expected_mean_row3}")
         print(f"Actual mean: {actual_mean_row3}")
         
-        # Allow small floating point differences
-        assert abs(actual_mean_row3 - expected_mean_row3) < 0.0001, \
+        # Use numpy's isclose for proper floating point comparison
+        assert np.isclose(actual_mean_row3, expected_mean_row3), \
             f"Row 3 should have mean of [1,2,3] = 2.0, but got {actual_mean_row3}"
         
         # Row 6 (Date 2024-01-07, value=7) should use values from indices 3,4,5 (values 4,5,6)
@@ -62,7 +62,7 @@ try:
         print(f"Expected mean (excluding current day): {expected_mean_row6}")
         print(f"Actual mean: {actual_mean_row6}")
         
-        assert abs(actual_mean_row6 - expected_mean_row6) < 0.0001, \
+        assert np.isclose(actual_mean_row6, expected_mean_row6), \
             f"Row 6 should have mean of [4,5,6] = 5.0, but got {actual_mean_row6}"
         
         print("\n✅ All tests passed! Temporal windows correctly start at t-1.")
