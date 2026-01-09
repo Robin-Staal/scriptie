@@ -137,8 +137,14 @@ class FeatureEngineeringPipeline:
         # Apply ACWR calculation
         if 'total_load' in daily_series_engineered_df.columns:
             daily_series_engineered_df = daily_series_engineered_df.sort_values('Date')
-            daily_series_engineered_df['ACWR_7d_28d'] = (
-                daily_series_engineered_df['total_load_sum_7d'] /
-                daily_series_engineered_df['total_load_sum_28d']
+            # ACWR = acute load (7-day rolling mean) / chronic load (7d-28d rolling mean)
+            daily_series_engineered_df['ACWR'] = (
+                daily_series_engineered_df['total_load_mean_7d'] /
+                (daily_series_engineered_df['total_load_mean_28d'])
             )
+            print("ACWR feature created:", daily_series_engineered_df['ACWR'].head(50))
+            
+        # write the dataframe to a csv for inspection
+        daily_series_engineered_df.to_csv("daily_series_engineered.csv", index=False)
+        
         return daily_series_engineered_df
