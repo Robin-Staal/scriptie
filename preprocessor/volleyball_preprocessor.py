@@ -41,11 +41,33 @@ class VolleyBallPreprocessor(Preprocessor):
         
         jumps_df = jumps_df.copy()
         jumps_agg = jumps_df.groupby('Date').agg(
-            Avg_JumpHeight=('HeightInCm', 'mean'),
+            AvgJumpHeight=('HeightInCm', 'mean'),
             TotalJumps=('HeightInCm', 'count')
         ).reset_index()
         jumps_agg['Date'] = pd.to_datetime(jumps_agg['Date'], dayfirst=True)
         return jumps_agg
+    
+    def preprocess_endurance(self, endurance_df: pd.DataFrame) -> pd.DataFrame:
+        '''
+        From (event/exercise-level):
+        - Date
+        - TrainingID
+        - Duration (in minutes)
+        - RPE
+        
+        To (training-level):
+        - Date
+        - Total duration (in minutes)
+        - RPE
+        '''
+        endurance_df = endurance_df.copy()
+        
+        endurance_agg = endurance_df.groupby('TrainingID').agg(
+            Date=('Date', 'first'),
+            Duration=('Duration', 'sum'),
+            RPE=('RPE', 'first'),
+        ).reset_index()
+        return endurance_agg
         
     def load(self):
         exercise_data = pd.read_csv(self.exercise_path, sep=';')
@@ -56,6 +78,7 @@ class VolleyBallPreprocessor(Preprocessor):
         jumps_data = self.preprocess_jumps(jumps_data)
         
         # Exercise-type is ignored for now, we only look at RPE and duration
+        # We merge the RPE data onto the exercise data to get a per-training df
         exercise_data.drop(columns=['Duration'])
         endurance_data = pd.merge(
             exercise_data,
@@ -64,9 +87,10 @@ class VolleyBallPreprocessor(Preprocessor):
             how='left'
         )
         endurance_data['Date'] = pd.to_datetime(endurance_data['Date'], dayfirst=True)
-        endurance_data['Duration'] = endurance_data['Duration_x']
-        endurance_data['Duration'] = pd.to_timedelta(endurance_data['Duration'])
+        endurance_data['Duration'] = pd.to_timedelta(endurance_data['Duration_x'])
         endurance_data['Duration'] = endurance_data['Duration'].dt.total_seconds() / 60.0
+        endurance_data = endurance_data[['Date', 'TrainingID', 'Duration', 'RPE']]
+        endurance_data = self.preprocess_endurance(endurance_data)
         
         wellness_data = self.preprocess_wellness(wellness_data)
         wellness_data['Date'] = pd.to_datetime(wellness_data['Date'], dayfirst=True)
