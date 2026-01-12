@@ -45,8 +45,15 @@ class FeatureEngineeringPipeline:
             max_repetitions=('Reps', 'max'),
             avg_repetitions=('Reps', 'mean')
         ).reset_index()
-        
-        return strength_df_daily
+
+        # Pivot the data to create columns for each bodypart
+        strength_df_pivot = strength_df_daily.pivot(index='Date', columns='Exercise')
+        strength_df_pivot.columns = [
+            f"{metric}_{exercise}" for metric, exercise in strength_df_pivot.columns
+        ]
+        strength_df_pivot = strength_df_pivot.reset_index()
+
+        return strength_df_pivot
         
     def engineer_endurance(self, endurance_df: pd.DataFrame) -> pd.DataFrame:
         '''
@@ -142,7 +149,6 @@ class FeatureEngineeringPipeline:
                 daily_series_engineered_df['total_load_mean_7d'] /
                 (daily_series_engineered_df['total_load_mean_28d'])
             )
-            print("ACWR feature created:", daily_series_engineered_df['ACWR'].head(50))
             
         # write the dataframe to a csv for inspection
         daily_series_engineered_df.to_csv("daily_series_engineered.csv", index=False)
