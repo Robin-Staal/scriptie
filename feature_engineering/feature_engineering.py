@@ -105,7 +105,7 @@ class FeatureEngineeringPipeline:
                 continue
             series = df[col]
             for w in self.windows:
-                rolling = series.rolling(window=w)
+                rolling = series.shift(1).rolling(window=w)
                 for agg_name, agg_func in self.aggregates.items():
                     feature_name = f"{col}_{agg_name}_{w}d"
                     new_features[feature_name] = rolling.apply(
