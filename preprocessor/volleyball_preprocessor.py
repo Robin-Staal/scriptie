@@ -45,6 +45,9 @@ class VolleyBallPreprocessor(Preprocessor):
             TotalJumps=('HeightInCm', 'count')
         ).reset_index()
         jumps_agg['Date'] = pd.to_datetime(jumps_agg['Date'], dayfirst=True)
+        # Replace 0 jumps with NaN
+        jumps_agg.loc[jumps_agg['TotalJumps'] == 1, 'AvgJumpHeight'] = pd.NA
+        jumps_agg.loc[jumps_agg['TotalJumps'] == 1, 'TotalJumps'] = 0
         return jumps_agg
     
     def preprocess_endurance(self, endurance_df: pd.DataFrame) -> pd.DataFrame:
