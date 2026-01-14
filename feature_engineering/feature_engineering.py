@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 
 class FeatureEngineeringPipeline:
-    def __init__(self, windows=(3, 5, 7, 14, 21, 28), lags=(1, 2, 3)):
+    def __init__(self, windows=(3, 5, 7, 14, 21, 28), lags=(2, 3, 4)):
         self.windows = windows
         self.lags = lags
         self.aggregates = {
@@ -111,6 +111,16 @@ class FeatureEngineeringPipeline:
                     new_features[feature_name] = rolling.apply(
                         agg_func, raw=True
                     )
+            # create windows shifted: col_lag_1d_8d, col_lag_2d_9d, col_lag_3d_10d, col_lag_1d_15d
+            for lag in self.lags:
+                shifted = series.shift(lag)
+                for w in self.windows:
+                    rolling = shifted.rolling(window=w)
+                    for agg_name, agg_func in self.aggregates.items():
+                        feature_name = f"{col}_{agg_name}_{lag}d-{w+lag}d"
+                        new_features[feature_name] = rolling.apply(
+                            agg_func, raw=True
+                        )
 
         features_df = pd.DataFrame(new_features, index=df.index)
 
