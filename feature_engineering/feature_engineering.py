@@ -11,6 +11,7 @@ class FeatureEngineeringPipeline:
             'min': np.min,
             'std': np.std,
         }
+        self.replace_none_with_zero = []
         
     def engineer_strength(self, strength_df: pd.DataFrame) -> pd.DataFrame:
         '''
@@ -37,13 +38,7 @@ class FeatureEngineeringPipeline:
         strength_df['strength_load'] = strength_df['Weight'] * strength_df['Reps']
         strength_df_daily = strength_df.groupby(['Date', 'Exercise']).agg(
             num_sets=('strength_load', 'count'),
-            total_strength_load=('strength_load', 'sum'),
-            max_strength_load=('strength_load', 'max'),
-            avg_strength_load=('strength_load', 'mean'),
-            max_weight=('Weight', 'max'),
-            avg_weight=('Weight', 'mean'),
-            max_repetitions=('Reps', 'max'),
-            avg_repetitions=('Reps', 'mean')
+            total_strength_load=('strength_load', 'sum')
         ).reset_index()
 
         # Pivot the data to create columns for each bodypart
@@ -52,6 +47,8 @@ class FeatureEngineeringPipeline:
             f"{metric}_{exercise}" for metric, exercise in strength_df_pivot.columns
         ]
         strength_df_pivot = strength_df_pivot.reset_index()
+        
+        self.replace_none_with_zero.extend([col for col in strength_df_pivot.columns if col != 'Date'])
 
         return strength_df_pivot
         
@@ -85,8 +82,11 @@ class FeatureEngineeringPipeline:
             max_RPE=('RPE', 'max'),
             avg_RPE=('RPE', 'mean'),
             max_duration=('Duration', 'max'),
-            avg_duration=('Duration', 'mean')
+            avg_duration=('Duration', 'mean'),
+            total_duration=('Duration', 'sum')
         ).reset_index()
+        
+        self.replace_none_with_zero.extend([col for col in endurance_df_daily.columns if col != 'Date'])
         
         return endurance_df_daily
     
@@ -111,7 +111,8 @@ class FeatureEngineeringPipeline:
                     new_features[feature_name] = rolling.apply(
                         agg_func, raw=True
                     )
-            # create windows shifted: col_lag_1d_8d, col_lag_2d_9d, col_lag_3d_10d, col_lag_1d_15d
+
+            # create windows shifted: col_lag_2d_9d, col_lag_3d_10d, col_lag_1d_15d
             for lag in self.lags:
                 shifted = series.shift(lag)
                 for w in self.windows:
@@ -147,6 +148,11 @@ class FeatureEngineeringPipeline:
         daily_series_df = pd.merge(endurance_daily, strength_daily, on='Date', how='outer')
         daily_series_df = pd.merge(daily_series_df, additional_df, on='Date', how='outer')
         daily_series_df = daily_series_df.copy()
+        
+        # Replace NONE values with 0 for training load related features
+        for col in self.replace_none_with_zero:
+            if col in daily_series_df.columns:
+                daily_series_df[col] = daily_series_df[col].fillna(0)
         
         daily_series_df.drop(columns=['Exercise'], inplace=True, errors='ignore')
         daily_series_engineered_df = self.construct_aggregates(daily_series_df)
